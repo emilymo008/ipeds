@@ -1,17 +1,25 @@
 ---
 title: "Modeling Postsecondary Retention Rates in the United States"
 author: "Emily Mo"
-date: "12/2/2019"
+date: "12/4/2019"
 output: pdf_document
+fig_caption: yes
+header-includes:
+ \usepackage{float}
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), 
+                      tidy = TRUE, fig.pos = 'H')
 
 library(tidyverse)
 library(car)
 library(arm)
 library(MCMCglmm)
+library(lattice)
+library(knitr)
+library(formatR)
+library(gridExtra)
 ```
 
 # Why Model Retention Rates?
@@ -27,30 +35,29 @@ colnames(edu) <- c(
   'id', 'name', 
   'ret_part17', 'ret_full17', 'sfratio17',
   'ret_part16', 'ret_full16', 'sfratio16', 
-  'ret_part15', 'ret_full15', 'sfratio15',  # 11
+  'ret_part15', 'ret_full15', 'sfratio15',  
   'ret_part14', 'ret_full14', 'sfratio14',
-  'acad_offer18', 'recr_offer18', 'lifeex18', 'dualcred18', 'tuitvary18', 'dist18',  # 20
-  
-  'acad_offer17', 'recr_offer17', 'tuitvary17', 'lifeex17', 'dualcred17', 'dist17',  # 26
-  'acad_offer16', 'recr_offer16', 'tuitvary16', 'lifeex16', 'dualcred16',  # 31
-  'acad_offer15', 'recr_offer15', 'tuitvary15', 'lifeex15', 'dualcred15',  # 36
-  'acad_offer14', 'recr_offer14', 'lifeex14', 'dualcred14',  # 40
-  'acad_offer13', 'recr_offer13', 'lifeex13', 'dualcred13',  # 44
-  'ret_part13', 'ret_full13', 'sfratio13',  # 47
-  'acad_offer12', 'recr_offer12', 'lifeex12', 'dualcred12',  # 51
-  'ret_part12', 'ret_full12', 'sfratio12',  # 54
-  'acad_offer11', 'recr_offer11', 'lifeex11', 'dualcred11',  # 58
-  'ret_part11', 'ret_full11', 'sfratio11',  # 61
-  'acad_offer10', 'recr_offer10', 'lifeex10', 'dualcred10',  # 65
-  'ret_part10', 'ret_full10', 'sfratio10',  # 68
-  'acad_offer09', 'recr_offer09', 'lifeex09', 'dualcred09',  # 72
+  'acad_offer18', 'recr_offer18', 'lifeex18', 'dualcred18', 'tuitvary18', 'dist18',  
+  'acad_offer17', 'recr_offer17', 'tuitvary17', 'lifeex17', 'dualcred17', 'dist17', 
+  'acad_offer16', 'recr_offer16', 'tuitvary16', 'lifeex16', 'dualcred16',  
+  'acad_offer15', 'recr_offer15', 'tuitvary15', 'lifeex15', 'dualcred15',  
+  'acad_offer14', 'recr_offer14', 'lifeex14', 'dualcred14',  
+  'acad_offer13', 'recr_offer13', 'lifeex13', 'dualcred13',  
+  'ret_part13', 'ret_full13', 'sfratio13',  
+  'acad_offer12', 'recr_offer12', 'lifeex12', 'dualcred12',  
+  'ret_part12', 'ret_full12', 'sfratio12',  
+  'acad_offer11', 'recr_offer11', 'lifeex11', 'dualcred11', 
+  'ret_part11', 'ret_full11', 'sfratio11', 
+  'acad_offer10', 'recr_offer10', 'lifeex10', 'dualcred10',  
+  'ret_part10', 'ret_full10', 'sfratio10', 
+  'acad_offer09', 'recr_offer09', 'lifeex09', 'dualcred09',  
   'state', 'highest_lvl',
-  'gradrate_bach17', 'gradrate_bach16', 'gradrate_bach15',  # 77
-  'nonres17', 'nonres16', 'nonres15', 'nonres14', 'nonres13', 'nonres12', 'nonres11', 'nonres10',  # 85
-  'total17', 'total16', 'total15', 'total14', 'total13', 'total12', 'total11', 'total10', 'total09',  # 94
-  'tuit_priv_fp17', 'tuit_priv_nfp17', 'tuit_pub17',  # 97
-  'total_ft17',  # 98
-  'X'  # 99
+  'gradrate_bach17', 'gradrate_bach16', 'gradrate_bach15', 
+  'nonres17', 'nonres16', 'nonres15', 'nonres14', 'nonres13', 'nonres12', 'nonres11', 'nonres10',  
+  'total17', 'total16', 'total15', 'total14', 'total13', 'total12', 'total11', 'total10', 'total09', 
+  'tuit_priv_fp17', 'tuit_priv_nfp17', 'tuit_pub17', 
+  'total_ft17',  
+  'X' 
 )
 
 #### data cleaning / EDA ####
@@ -102,46 +109,46 @@ edu_17 <- edu_17[!is.na(edu_17$dist17) & !is.na(edu_17$lifeex17) & !is.na(edu_17
   edu_17$state[56] <- 'FL'
   edu_17$state[63] <- 'MD'
   edu_17$state[68] <- 'MA'
-  edu_17$state[154] <- 'OK'  # American Broadcasting School-Oklahoma City 
+  edu_17$state[154] <- 'OK'  
   edu_17$state[155] <- 'OK'
   edu_17$state[209] <- 'PA'
-  edu_17$state[433] <- 'MA'  # BCI - this is in malden 
-  edu_17$state[440] <- NA  # found it online by searching ipeds id but it's under a different name so not sure
+  edu_17$state[433] <- 'MA'  
+  edu_17$state[440] <- NA  
   edu_17$state[1031] <- 'OH'
-  edu_17$state[1074] <- 'CA'  # Coleman University
+  edu_17$state[1074] <- 'CA'  
   edu_17$state[1210] <- 'PA'
   edu_17$state[1244] <- 'VA'
   edu_17$state[1650] <- 'FL'
   edu_17$state[1876] <- 'GA'
-  edu_17$state[1890] <- 'OH'  # Georgie International Beauty Institute  
+  edu_17$state[1890] <- 'OH'   
   edu_17$state[1900] <- 'CO'
-  edu_17$state[1901] <- NA  # Global Institute - too vague
+  edu_17$state[1901] <- NA  
   edu_17$state[1928] <- 'NE'
   edu_17$state[1979] <- 'MO'
   edu_17$state[1982] <- 'AZ'
   edu_17$state[1984] <- 'CA'
-  edu_17$state[2206] <- 'PR'  # Instituto de Educacion Tecnica Ocupacional La Reine-Manati
+  edu_17$state[2206] <- 'PR'  
   edu_17$state[2551] <- 'MA'
   edu_17$state[2555] <- 'MA'
-  edu_17$state[2629] <- 'TX'  # Lubbock Hair Academy   
+  edu_17$state[2629] <- 'TX'  
   edu_17$state[2746] <- 'HI'
   edu_17$state[2747] <- 'FL'
   edu_17$state[2748] <- 'FL'
-  edu_17$state[2984] <- 'IL'  # Morthland College 
+  edu_17$state[2984] <- 'IL' 
   edu_17$state[2993] <- 'MA'
   edu_17$state[3266] <- 'TN'
   edu_17$state[3342] <- 'NE'
   edu_17$state[3351] <- 'PA'
-  edu_17$state[3365] <- 'FL'  # Orion College 
+  edu_17$state[3365] <- 'FL'  
   edu_17$state[3673] <- 'WA'
   edu_17$state[3741] <- 'CA'
   edu_17$state[3785] <- 'CT'
   edu_17$state[3786] <- 'NY'
-  edu_17$state[3839] <- 'OR'  # Roseburg Beauty College 
+  edu_17$state[3839] <- 'OR' 
   edu_17$state[4233] <- 'MO'
   edu_17$state[4255] <- 'NJ'
   edu_17$state[4328] <- 'WA'
-  edu_17$state[4581] <- 'CA'  # Thuy Princess Beauty College 
+  edu_17$state[4581] <- 'CA'  
   edu_17$state[5218] <- 'TN'
   edu_17$state[5330] <- 'PA'
   edu_17$state[5331] <- 'FL'
@@ -167,7 +174,7 @@ edu_17$notret <- edu_17$total_ft17 - edu_17$retcount  # and for number of not re
 
 # Models
 
-Using this cleaned and narrowed data set, I fit two Binomial regression models with increasingly complex hierarchical structure. Because a Laplacian fitting algorithm produced nearly unidentifiable parameter estimates ^[Results from the Laplacian approach are detailed in Appendix A.)], I used a Bayesian fitting approach, which allowed for more nuanced evaluation of the parameters’ convergence, as well as permitted probabilistic statements about the parameters’ true values given the data.
+Using this cleaned and narrowed data set, I fit two Binomial regression models with increasingly complex hierarchical structure. The student-faculty ratio variable was centered at its mean, which was 15.268, in order to improve interpretability. Because a Laplacian fitting algorithm produced nearly unidentifiable parameter estimates ^[Results from the Laplacian approach are detailed in Appendix B.)], I used a Bayesian fitting approach, which allowed for more nuanced evaluation of the parameters’ convergence, as well as permitted probabilistic statements about the parameters’ true values given the data.
 
 ## Model A: Multilevel model with varying intercepts per state and public/private status
 
@@ -192,17 +199,17 @@ According to the model:
 
 * A baseline institution that has no distance learning options, offers no credit for life experiences, offers no recreational or avocational opportunities, and has a typical student-faculty ratio of about 15 is expected to have a log odds retention rate ratio ^[The log odds retention rate ratio is the natural logarithm of the ratio between retention rate and its complement.] of `r summary(ipeds_mcmc2$Sol)$statistics[1, 1] %>% round(3)`, meaning that the estimated retention rate of such an institution would be 
 $logit^{-1}$ (`r {summary(ipeds_mcmc2$Sol)$statistics[1, 1] %>% round(3)}`) = `r (invlogit(summary(ipeds_mcmc2$Sol)$statistics[1, 1])) %>% round(3)`.
-* An institution that offers distance learning options is expected to have a log odds retention rate ratio that is `r summary(ipeds_mcmc2$Sol)$statistics[2, 1] %>% round(3) %>% abs` less than that of an institution that does not offer distance learning options, given that credit for life experiences, recreational offerings, and student faculty ratio are held constant. While the corresponding change in retention rate itself can vary depending on the original retention rate, an estimated upper bound on the corresponding change in retention rate is `r summary(ipeds_mcmc2$Sol)$statistics[2, 1] %>% round(3)` / 4 = `r ((summary(ipeds_mcmc2$Sol)$statistics[2, 1] %>% round(3)) / 4) %>% round(3)`.
-* An institution that offers credit for life experiences is expected to have a log odds retention rate ratio that is `r summary(ipeds_mcmc2$Sol)$statistics[3, 1] %>% round(3) %>% abs` less than that of an institution that does not offer credit for life experiences, given that distance learning offerings, recreational offerings, and student faculty ratio are held constant. While the corresponding change in retention rate itself can vary depending on the original retention rate, an estimated upper bound on the corresponding change in retention rate is `r summary(ipeds_mcmc2$Sol)$statistics[3, 1] %>% round(3)` / 4 = `r ((summary(ipeds_mcmc2$Sol)$statistics[3, 1] %>% round(3)) / 4) %>% round(3)`.
-* An institution that offers recreational or avocational opportunities is expected to have a log odds retention rate ratio that is `r summary(ipeds_mcmc2$Sol)$statistics[4, 1] %>% round(3) %>% abs` less than that of an institution that does not offer recreational or avocational opportunities, given that distance learning offerings, credit for life experiences, and student faculty ratio are held constant. While the corresponding change in retention rate itself can vary depending on the original retention rate, an estimated upper bound on the corresponding change in retention rate is `r summary(ipeds_mcmc2$Sol)$statistics[4, 1] %>% round(3)` / 4 = `r ((summary(ipeds_mcmc2$Sol)$statistics[4, 1] %>% round(3)) / 4) %>% round(3)`.
-* A unit increase in student-faculty ratio is generally associated with a decrease of `r summary(ipeds_mcmc2$Sol)$statistics[5, 1] %>% round(3) %>% abs` in the log odds ratio of retention rate, given that distance learning offerings, credit for life experiences, and recreational offerings are held constant. While the corresponding change in retention rate itself can vary depending on the original retention rate, an estimated upper bound on the corresponding change in retention rate is `r summary(ipeds_mcmc2$Sol)$statistics[5, 1] %>% round(3)` / 4 = `r ((summary(ipeds_mcmc2$Sol)$statistics[5, 1] %>% round(3)) / 4) %>% round(3)`.
+* An institution that offers distance learning options is expected to have a log odds retention rate ratio that is `r summary(ipeds_mcmc2$Sol)$statistics[2, 1] %>% round(3) %>% abs` less than that of an institution that does not offer distance learning options, given that credit for life experiences, recreational offerings, and student faculty ratio are held constant. While the corresponding change in retention rate itself can vary depending on the original retention rate, an estimated upper bound on the corresponding change in retention rate is `r summary(ipeds_mcmc2$Sol)$statistics[2, 1] %>% round(3)` / 4 = `r (summary(ipeds_mcmc2$Sol)$statistics[2, 1] / 4) %>% round(3)`.
+* An institution that offers credit for life experiences is expected to have a log odds retention rate ratio that is `r summary(ipeds_mcmc2$Sol)$statistics[3, 1] %>% round(3) %>% abs` less than that of an institution that does not offer credit for life experiences, given that distance learning offerings, recreational offerings, and student faculty ratio are held constant. While the corresponding change in retention rate itself can vary depending on the original retention rate, an estimated upper bound on the corresponding change in retention rate is `r summary(ipeds_mcmc2$Sol)$statistics[3, 1] %>% round(3)` / 4 = `r (summary(ipeds_mcmc2$Sol)$statistics[3, 1] / 4) %>% round(3)`.
+* An institution that offers recreational or avocational opportunities is expected to have a log odds retention rate ratio that is `r summary(ipeds_mcmc2$Sol)$statistics[4, 1] %>% round(3) %>% abs` less than that of an institution that does not offer recreational or avocational opportunities, given that distance learning offerings, credit for life experiences, and student faculty ratio are held constant. While the corresponding change in retention rate itself can vary depending on the original retention rate, an estimated upper bound on the corresponding change in retention rate is `r summary(ipeds_mcmc2$Sol)$statistics[4, 1] %>% round(3)` / 4 = `r (summary(ipeds_mcmc2$Sol)$statistics[4, 1] / 4) %>% round(3)`.
+* A unit increase in student-faculty ratio is generally associated with a decrease of `r summary(ipeds_mcmc2$Sol)$statistics[5, 1] %>% round(3) %>% abs` in the log odds ratio of retention rate, given that distance learning offerings, credit for life experiences, and recreational offerings are held constant. While the corresponding change in retention rate itself can vary depending on the original retention rate, an estimated upper bound on the corresponding change in retention rate is `r summary(ipeds_mcmc2$Sol)$statistics[5, 1] %>% round(3)` / 4 = `r (summary(ipeds_mcmc2$Sol)$statistics[5, 1] / 4) %>% round(3)`.
 
 The estimate for the variance between states’ baseline retention rates, `r summary(ipeds_mcmc2)$Gcovariances[1,1] %>% round(3)`, was small compared to the estimate for the variance between public/private statuses’ baseline retention rates, `r summary(ipeds_mcmc2)$Gcovariances[2,1] %>% round(3)`. This discrepancy suggested that the state grouping may not provide much additional information about the baseline retention rate after the overall baseline retention rate is already considered. However, there seems to be much more variation in retention rates between public, private not-for-profit, and private for-profit institutions.  
 
-The estimated varying intercepts for public, private not-for-profit, and private for-profit were as follows:
+The estimated varying intercepts for public, private not-for-profit, and private for-profit were as follows:  
 
 ``` {r echo = FALSE}
-summary(ipeds_mcmc2$Sol)$statistics[64:66,1]
+summary(ipeds_mcmc2$Sol)$statistics[64:66,1:2]
 ```
 
 According to the model, a baseline institution that has no distance learning options, offers no credit for life experiences, offers no recreational or avocational opportunities, and has a typical student-faculty ratio is expected to have a retention rate of:  
@@ -211,10 +218,176 @@ According to the model, a baseline institution that has no distance learning opt
 * $logit^{-1}$ (`r {summary(ipeds_mcmc2$Sol)$statistics[1, 1] %>% round(3)}` + `r summary(ipeds_mcmc2$Sol)$statistics[65,1] %>% abs %>% round(3)`) = `r invlogit(summary(ipeds_mcmc2$Sol)$statistics[1, 1] + summary(ipeds_mcmc2$Sol)$statistics[65,1] ) %>% round(3)` if it is private not-for-profit
 * $logit^{-1}$ (`r {summary(ipeds_mcmc2$Sol)$statistics[1, 1] %>% round(3)}` - `r summary(ipeds_mcmc2$Sol)$statistics[66,1] %>% abs %>% round(3)`) = `r invlogit(summary(ipeds_mcmc2$Sol)$statistics[1, 1] + summary(ipeds_mcmc2$Sol)$statistics[66,1] ) %>% round(3)` if it is public
 
-The variation in estimated baseline retention rate between the different public/private statuses remind us that the type of institution alone may be associated with factors that influence a student’s likelihood to stay in school, regardless of efforts made by the institution to prevent attrition. However, we must note that the standard deviation of these estimates all suggest 95% credible intervals that contain 0, so there is a great degree of uncertainty of these varying intercepts. 
+The variation in estimated baseline retention rate between the different public/private statuses remind us that the type of institution alone may be associated with factors that influence a student’s likelihood to stay in school, regardless of efforts made by the institution to prevent attrition. However, we must note that the standard deviation of these estimates all suggest 95% credible intervals that contain 0, so there is a great degree of uncertainty of these varying intercepts.  
 
 ## Model B: Multilevel model with varying intercepts per state and public/private status, and varying slope for recreational experiences per public/private status
 
+I next fit a model similar to Model A, but with two major departures: 1.) it eliminated the distance learning predictor since the predictor did not seem very informative in Model A due to collinearity, and 2.) it allowed the slope for recreational offerings to vary across each public/private status. The addition of this random slope reflects the possibility that recreational offerings could have a different relationship with retention rate for public institutions than for private institutions, due to differences in the students that may attend each type of institution.  
 
+The coefficient estimates and between-group variance estimates are as follows ^[full model outputs can be found in Appendix B]:  
+
+``` {r}
+set.seed(60)
+prior_inf2 <- list(
+  R = list(V = 1, nu = 2),  
+  G = list(G1 = list(V = 1, nu = 2),  
+           G1 = list(V = diag(2), nu = 2)))  
+ipeds_mcmc3 <-  MCMCglmm(cbind(retcount, notret) ~ lifeex17 + recr_offer17 + sfratio_c,
+                         ~ us(1):state +
+                           us(1 + recr_offer17):pubpriv,  
+                         data = edu_17, family = 'multinomial2',
+                         prior = prior_inf2,
+                         nitt = 40000, thin = 30, burnin = 10000, pr = T, verbose = F) 
+summary(ipeds_mcmc3)
+```
+
+According to the model:  
+
+* A baseline institution that offers no credit for life experiences, offers no recreational or avocational opportunities, and has a typical student-faculty ratio of about 15 is expected to have a log odds retention rate ratio of `r summary(ipeds_mcmc3$Sol)$statistics[1, 1] %>% round(3)`, meaning that the estimated retention rate of such an institution would be $logit^{-1}$ (`r summary(ipeds_mcmc3$Sol)$statistics[1, 1] %>% round(3)`) = `r invlogit(summary(ipeds_mcmc3$Sol)$statistics[1, 1]) %>% round(3)`.
+* An institution that offers credit for life experiences is expected to have a log odds retention rate ratio that is `r summary(ipeds_mcmc3$Sol)$statistics[2, 1] %>% round(3) %>% abs` less than that of an institution that does not offer credit for life experiences, given that recreational offerings and student faculty ratio are held constant. While the corresponding change in retention rate itself can vary depending on the original retention rate, an estimated upper bound on the corresponding change in retention rate is `r summary(ipeds_mcmc3$Sol)$statistics[2, 1] %>% round(3)` / 4 = `r (summary(ipeds_mcmc3$Sol)$statistics[2, 1] %>% round(3)) / 4`.
+* An institution that offers recreational or avocational opportunities is expected to have a log odds retention rate ratio that is `r summary(ipeds_mcmc3$Sol)$statistics[3, 1] %>% round(3) %>% abs` less than that of an institution that does not offer recreational or avocational opportunities, given that credit for life experiences and student faculty ratio are held constant. While the corresponding change in retention rate itself can vary depending on the original retention rate, an estimated upper bound on the corresponding change in retention rate is `r summary(ipeds_mcmc3$Sol)$statistics[3, 1] %>% round(3)` / 4 = `r (summary(ipeds_mcmc3$Sol)$statistics[3, 1] %>% round(3)) / 4`.
+* A unit increase in student-faculty ratio is generally associated with a decrease of `r summary(ipeds_mcmc3$Sol)$statistics[4, 1] %>% round(3) %>% abs` in the log odds ratio of retention rate, given that distance learning offerings, credit for life experiences, and recreational offerings are held constant. While the corresponding change in retention rate itself can vary depending on the original retention rate, an estimated upper bound on the corresponding change in retention rate is `r summary(ipeds_mcmc3$Sol)$statistics[4, 1] %>% round(3)` / 4 = `r (summary(ipeds_mcmc3$Sol)$statistics[4, 1] %>% round(3)) / 4`.
+
+Despite the change in model structure, the predictors’ coefficients remain fairly similar—in both direction and magnitude—to their corresponding coefficients in Model A. However, the p-value of recreational offerings, which was close to 0 in Model A, is now very high. Allowing the coefficient of recreational offerings to vary by public/private status may have introduced more uncertainty into the overall coefficient estimate.   
+
+The estimate for the variance between states’ baseline retention rates, `r summary(ipeds_mcmc3)$Gcovariances[1,1] %>% round(3)`, was again small compared to the estimate for the variance between public/private statuses’ baseline retention rates, `r summary(ipeds_mcmc3)$Gcovariances[2,1] %>% round(3)`. This again suggested that the state grouping may not provide much additional information about the baseline retention rate after the overall baseline retention rate is already considered. However, there seems to be relatively much more variation in retention rates between public, private not-for-profit, and private for-profit institutions. It is important to note the uncertainty about the variance between public/private statuses’ baseline retention rates: the confidence interval about the mean estimate is very wide on the upper limit because the spread of the distribution is so wide that the estimates are truncated at 0 on the lower limit. This is likely because there are only three public/private status groups from which this parameter is estimated. A similar lack of precision is observed with the estimated variance between public/private statuses’ slopes for recreational offerings.  
+
+The estimated varying intercepts for public, private not-for-profit, and private for-profit were as follows:
+
+``` {r, echo = FALSE}
+summary(ipeds_mcmc3$Sol)$statistics[63:65,1:2]
+```
+
+According to the model, a baseline institution that has no distance learning options, offers no credit for life experiences, offers no recreational or avocational opportunities, and has a typical student-faculty ratio is expected to have a retention rate of:
+
+* $logit^{-1}$ (`r {summary(ipeds_mcmc3$Sol)$statistics[1, 1] %>% round(3)}` - `r summary(ipeds_mcmc3$Sol)$statistics[63,1] %>% abs %>% round(3)`) = `r invlogit(summary(ipeds_mcmc3$Sol)$statistics[1, 1] + summary(ipeds_mcmc3$Sol)$statistics[63,1] ) %>% round(3)` if it is private for-profit
+* $logit^{-1}$ (`r {summary(ipeds_mcmc3$Sol)$statistics[1, 1] %>% round(3)}` + `r summary(ipeds_mcmc3$Sol)$statistics[64,1] %>% abs %>% round(3)`) = `r invlogit(summary(ipeds_mcmc3$Sol)$statistics[1, 1] + summary(ipeds_mcmc3$Sol)$statistics[64,1] ) %>% round(3)` if it is private not-for-profit
+* $logit^{-1}$ (`r {summary(ipeds_mcmc3$Sol)$statistics[1, 1] %>% round(3)}` - `r summary(ipeds_mcmc3$Sol)$statistics[65,1] %>% abs %>% round(3)`) = `r invlogit(summary(ipeds_mcmc3$Sol)$statistics[1, 1] + summary(ipeds_mcmc3$Sol)$statistics[65,1] ) %>% round(3)` if it is public
+
+This echoes the pattern seen in Model A’s intercepts across public/private statuses: private not-for-profit institutions are expected to have higher baseline retention rates than private for-profit and public institutions. However, similarly to in Model A, all of these estimates’ 95% credible intervals contain 0, so we can not be very sure of their precision.  
+
+The estimated varying recreational offering slopes for public, private not-for-profit, and private for-profit institutions were as follows:
+
+``` {r, echo = FALSE}
+summary(ipeds_mcmc3$Sol)$statistics[66:68,1:2]
+```
+
+Based on this model’s varying slopes, an institution that offers recreational or avocational opportunities is expected to have a log odds retention rate ratio that is:  
+
+* `r summary(ipeds_mcmc3$Sol)$statistics[3, 1] %>% round(3)` - `r summary(ipeds_mcmc3$Sol)$statistics[66,1] %>% abs %>% round(3)` = `r (summary(ipeds_mcmc3$Sol)$statistics[3, 1] + summary(ipeds_mcmc3$Sol)$statistics[66,1]) %>% abs %>% round(3)` lower than an institution that does not offer recreational or avocational opportunities, given that credit for life experiences and student faculty ratio are held constant, for for-profit institutions. An estimated upper bound on the corresponding change in retention rate is `r (summary(ipeds_mcmc3$Sol)$statistics[3, 1] + summary(ipeds_mcmc3$Sol)$statistics[66,1]) %>% round(3)` / 4 = `r ((summary(ipeds_mcmc3$Sol)$statistics[3, 1] + summary(ipeds_mcmc3$Sol)$statistics[66,1]) / 4) %>% round(3)`.
+* `r summary(ipeds_mcmc3$Sol)$statistics[3, 1] %>% round(3)` + `r summary(ipeds_mcmc3$Sol)$statistics[67,1] %>% abs %>% round(3)` = `r (summary(ipeds_mcmc3$Sol)$statistics[3, 1] + summary(ipeds_mcmc3$Sol)$statistics[67,1]) %>% abs %>% round(3)` higher than an institution that does not offer recreational or avocational opportunities, given that credit for life experiences and student faculty ratio are held constant, for private not-for-profit institutions. An estimated upper bound on the corresponding change in retention rate is `r (summary(ipeds_mcmc3$Sol)$statistics[3, 1] + summary(ipeds_mcmc3$Sol)$statistics[67,1]) %>% round(3)` / 4 = `r ((summary(ipeds_mcmc3$Sol)$statistics[3, 1] + summary(ipeds_mcmc3$Sol)$statistics[67,1]) / 4) %>% round(3)`.
+* `r summary(ipeds_mcmc3$Sol)$statistics[3, 1] %>% round(3)` - `r summary(ipeds_mcmc3$Sol)$statistics[68,1] %>% abs %>% round(3)` = `r (summary(ipeds_mcmc3$Sol)$statistics[3, 1] + summary(ipeds_mcmc3$Sol)$statistics[68,1]) %>% abs %>% round(3)` lower than an institution that does not offer recreational or avocational opportunities, given that credit for life experiences and student faculty ratio are held constant, for public institutions. An estimated upper bound on the corresponding change in retention rate is `r (summary(ipeds_mcmc3$Sol)$statistics[3, 1] + summary(ipeds_mcmc3$Sol)$statistics[68,1]) %>% round(3)` / 4 = `r ((summary(ipeds_mcmc3$Sol)$statistics[3, 1] + summary(ipeds_mcmc3$Sol)$statistics[68,1]) / 4) %>% round(3)`.  
+
+Interestingly, the varying slopes suggest that the presence of recreational opportunities is associated with higher retention rates in private not-for-profit institutions, yet is associated with lower retention rates in private for-profit and public institutions. Again, this cannot necessarily be interpreted as a causal effect on retention rates—the competition between institutional factors and external student-specific factors may vary between each of these types of institutions. Additionally, the standard deviation of these estimates all suggest 95% credible intervals that contain 0, so there remains much uncertainty about these varying intercepts. With these results in mind, private and public institutions may find it useful to investigate, on the student level, how the quality and variety of recreational programs contribute to the educational experience, or whether participation in these programs are relevant or feasible to students in the first place. For instance, students who work part time to sustain their families, who may be a more prominent subpopulation in public institutions than private not-for-profit institutions, may not have as much time to take advantage of recreational options and may also be more at risk for dropping out. 
+
+# Model Checking   
+
+## Model A  
+
+In order to check the stability of the MCMC coefficient estimates, I first inspect the trace plots (Figure 1) for stationarity and compare the posterior sample densities (Figure 2) to a Normal distribution. The QQ plots for the posterior sample densities (Figure 3) suggest that aside from the intercept, the coefficient estimates across the fitting iterations are roughly normally distributed. The QQ plot for the intercept, however, suggests that the distribution has heavier tails than a Normal distribution despite its symmetry, which places more weight on the extreme values of the posterior distribution and makes the posterior mean relatively less probable. The trace plots for all of these coefficient estimates appear stationary aside from occasional outliers, which suggests that the estimated posterior distributions are stable.
+
+``` {r echo = FALSE, fig.cap = 'Trace Plots for Model A Non-Varying Coefficients'}
+# 1
+xyplot(as.mcmc(ipeds_mcmc2$Sol[,5:1]))
+```
+
+``` {r echo = FALSE, fig.cap = 'Density Plots for Model A Non-Varying Coefficients'}
+# 2
+densityplot(as.mcmc(ipeds_mcmc2$Sol[,5:1]))
+```
+
+``` {r echo = FALSE, fig.cap = c('QQ Plots for Model A Non-Varying Coefficients')}
+# 3
+par(mfrow = c(2, 3))
+qqnorm(ipeds_mcmc2$Sol[,1], main = 'Intercept'); qqline(ipeds_mcmc2$Sol[,1]) 
+qqnorm(ipeds_mcmc2$Sol[,2], main = 'Distance Learning'); qqline(ipeds_mcmc2$Sol[,2]) 
+qqnorm(ipeds_mcmc2$Sol[,3], main = 'Credit for Life Experiences'); qqline(ipeds_mcmc2$Sol[,3]) 
+qqnorm(ipeds_mcmc2$Sol[,4], main = 'Recreational Offerings'); qqline(ipeds_mcmc2$Sol[,4])  
+qqnorm(ipeds_mcmc2$Sol[,5], main = 'Student-Faculty Ratio'); qqline(ipeds_mcmc2$Sol[,5]) 
+```
+
+Next, I compare Model A’s parameter estimates to the unstable estimates from a Laplacian model ^[More details about the Laplacian model can be found in Appendix B.] fitted with the lmer package, which has the same model structure but is nearly unidentifiable.
+
+Laplacian model coefficients:
+``` {r echo = FALSE}
+# TODO: make the warnings wrap (or not, doesn't work)
+# TODO: figure out how to force positioning of plots
+ipeds2 <- glmer(cbind(retcount, notret) ~ dist17 + lifeex17 + recr_offer17 + sfratio_c + (1 | state) + (1 | pubpriv), family = binomial, data = edu_17)
+
+summary(ipeds2)$coef
+```
+
+MCMC model coefficients:
+``` {r echo = FALSE}
+summary(ipeds_mcmc2)$solutions
+```
+
+The most obvious difference is that the coefficient for distance learning offerings has a very small p-value and a much larger positive magnitude in the Laplacian model, whereas the MCMC model has a very large p-value and a negative magnitude closer to 0. The sample density of Model A’s iterations suggests that the distance learning coefficient estimate from the analogous Laplacian model, `r summary(ipeds2)$coef[2,1] %>% round(3)`, is plausible but extremely unlikely. The intercepts between the two models appear to be consistent with one another. The other coefficients, while similar in direction and magnitude, are all of slightly larger magnitude in the Laplacian model, and most of the Laplacian model’s coefficients fall outside of the 95% credible intervals produced from the MCMC model. The similarity between most of these parameter estimates affirms Model A’s plausibility. Given our knowledge of the collinearity of the three binary predictors, Model A provides a more appropriately conservative suggestion that distance learning may not have an effect on retention rate once the other predictors have been accounted for. 
+
+``` {r echo = FALSE, fig.cap = 'Trace Plots for Model A Varying Intercept Variances'}
+# 4
+xyplot(as.mcmc(ipeds_mcmc2$VCV[,2:1]))
+```
+
+``` {r echo = FALSE, fig.cap = 'Density Plots for Model A Varying Intercept Variances'}
+# 5
+densityplot(as.mcmc(ipeds_mcmc2$VCV[,2:1]))
+```
+
+The trace plot and density plot for the variance between state-specific intercepts (Figure 4) suggest that the posterior for the variance estimate is convergent. Based on the narrow spread of the posterior, it is highly credible that the between-state variance is a positive value near 0. However, the variance of intercepts between the public/private statuses (Figure 4) has a spread that is harshly truncated at 0, so while the posterior mean of these intercepts’ variance is higher than the posterior mean of the between-state variance, there is much more uncertainty about this estimate, and it is plausible that the true variance between the public/private statuses’ intercepts is 0. The trace plots for both of these parameters reveal rough stationarity aside from occasional spikes.
+
+## Model B
+
+The QQ plot for the overall intercept’s posterior (Figure 8) again reveals heavy tails, which makes the posterior mean relatively less probable than that of Model A. The QQ plot for the coefficient of recreational offerings (Figure 8) also shows that the tails of the sample posterior are heavier than that of a Normal distribution, which may be a result of the newly added varying slopes for this variable. This kurtosis compounds the uncertainty about the recreational offerings coefficient that was suggested with the drastic increase in its p-value compared to Model A. The remaining QQ plots (Figure 8) for the other coefficients show that the corresponding posterior densities (Figure 7) are roughly Normal, and all trace plots (Figure 6) show stationarity aside from occasional outliers, which suggests that these estimates are stable. The coefficient estimates are roughly consistent with those of Model A, aside from the obviously eliminated term for distance learning.
+
+``` {r echo = FALSE, fig.cap = 'Trace Plots for Model B Non-Varying Coefficients'}
+# 6
+xyplot(as.mcmc(ipeds_mcmc3$Sol[,4:1]))
+```
+
+``` {r echo = FALSE, fig.cap = 'Density Plots for Model B Non-Varying Coefficients'}
+# 7
+densityplot(as.mcmc(ipeds_mcmc3$Sol[,4:1]))
+```
+
+``` {r echo = FALSE, fig.cap = c('QQ Plots for Model B Non-Varying Coefficients')}
+# 8
+par(mfrow = c(2, 3))
+qqnorm(ipeds_mcmc3$Sol[,1], main = 'Intercept'); qqline(ipeds_mcmc3$Sol[,1]) 
+qqnorm(ipeds_mcmc3$Sol[,2], main = 'Credit for Life Experiences'); qqline(ipeds_mcmc3$Sol[,2]) 
+qqnorm(ipeds_mcmc3$Sol[,3], main = 'Recreational Offerings'); qqline(ipeds_mcmc3$Sol[,3])  
+qqnorm(ipeds_mcmc3$Sol[,4], main = 'Student-Faculty Ratio'); qqline(ipeds_mcmc3$Sol[,4]) 
+```
+
+The density plot of the estimated variation between the state-specific intercepts (Figure 10), with its small spread, again allows for high credibility that the between-state variance is a small, positive, and close to 0. The density plot of the estimated variation for the intercept between different public/private statuses (Figure 10) has a wide spread that get sharply truncated at 0; thus, it is still likely that the true variation of intercepts between public/private statuses is 0, despite the posterior mean being greater than 1. Finally, the density plot of the estimated variation between recreational offerings slopes per public/private status (Figure 10) reveals a very large spread, and the distribution is also sharply truncated at 0, suggesting major uncertainty about this estimate. Despite this uncertainty, the trace plots for all of these parameters (Figure 9) reveal rough stationarity.
+
+
+``` {r echo = FALSE, fig.cap = 'Trace Plots for Model B Varying Intercept Variances'}
+# 9
+xyplot(as.mcmc(ipeds_mcmc3$VCV[,c(5, 2, 1)]))
+```
+
+``` {r echo = FALSE, fig.cap = 'Density Plots for Model B Varying Intercept Variances'}
+# 10
+densityplot(as.mcmc(ipeds_mcmc3$VCV[,c(5, 2, 1)]))
+```
+
+# Discussion
+
+Fitting the models with the MCMC framework allowed for more probabilistic assessments about the convergence and stability, which cannot be made from a frequentist framework. Therefore, although a Laplacian model fit was nearly unidentifiable, the same model under an MCMC fit could still be deemed valid based on the characteristics of the algorithm’s trace over time and the shape of the resulting estimated posterior distribution. Including two non-nested grouping variables in the multilevel model, however, made the model more difficult to fit, and increasingly so when adding a varying intercept on top of the varying slopes. However, a Bayesian framework made it easier to visually pinpoint the credibility of the posterior means for both the coefficient estimates and the between-group variances, as well as to confirm whether the MCMC sampling process was yielding adequately consistent results.  
+
+The hierarchical structure of Model A and B assumes a common distribution behind the intercepts corresponding to different states, and a common distribution behind the intercepts corresponding to different public/private statuses. Due to this characteristic of the models, the main coefficients represent trends that fit the entire set of institutions in general, and the coefficients are moderated by further information about an institution’s state and public/private status. Both Model A and Model B denote that offering credit for life experiences, offering recreational/avocational options, and having a higher student-faculty ratio are all associated with lower retention rates. Both models identify credit for life experiences and recreational offerings as the predictors that are associated with the largest expected change in retention rate, whereas distance learning and student-faculty ratio contribute more marginally to the retention rate. Student-faculty ratio has a negative association with retention rate, which is consistent with the common intuition that more individualized attention contributes to a more encouraging academic setting. Yet the three binary predictors in the model, all of which represent features that are intended to make the postsecondary education experience more welcoming or accommodating, are all negatively associated with lower retention probabilities, which at first instinct may seem counterintuitive. However, these associations may actually reflect the complex push and pull between external barriers to educational attainment and institutions’ efforts to compensate for these barriers. It is possible that an institution with a lower retention rate may actually be doing better in creating an accessible learning environment than its higher-retention-rate counterparts, perhaps because its student body’s particular struggles inspired such efforts in the first place. Contrarily, it is also possible that the quality of such efforts genuinely have some sort of negative impact on retention rates.  
+
+The varying intercepts for public/private statuses suggest that private not-for-profit institutions are generally expected to have higher retention rates than private for-profit or public institutions. Additionally, the varying slopes reveal that recreational and avocational resources may have completely different roles in the educational experience for private not-for-profit vs. private for-profit and public institutions. When allowing the recreational offerings slope to vary for each public/private status, however, the estimate of the overall recreational offerings coefficient becomes much more uncertain, suggesting that the relationship between recreational offerings and retention rate is dominated by the difference between that variable’s three groups. However, the model is unable to provide enough precision on the public/private status groups’ varying intercepts or slopes to confidently claim that they differ.
+
+Although these models identify overarching relationships between retention rates and several institutional features believed to improve or facilitate the educational experience, the causality behind these relationships remains unknown. Additionally, the precision of the parameter estimates are limited by the data, which is already a very substantial fraction of the entire population of postsecondary institutions throughout the nation. The limitations of these models, and the questions that remain after understanding their results, can inspire institutions’ future efforts to investigate specifically into the bidirectional causal forces between their own offerings and their retention rates. By starting conversations based on the model results, institutions can evaluate where they individually fit into the picture painted by the models, and use these conversations to improve their programs in accordance with their community’s needs. For instance, an institution could obtain much more valuable data for these purposes by administering surveys or hosting student forums about how their resources are addressing student needs. Such measures may include questions about the degree of influence of personal, physical, or social factors on students’ ability/desire to take advantage of certain resources, or overall evaluations of how welcome students feel taking advantage of certain resources. These measures would allow for a better understanding of confounding variables that also impact retention rates. Additionally, collecting more standardized information from these causal survey measures across institutions nationwide could help fit an improved model that identifies trends between students’ relationships with institutional resources and retention rates, rather than the resources themselves and retention rates. Without considering such factors that exist outside an institution’s responsibility or control, however, a retention rate can be a very noisy, uninformative metric of an institution’s quality or appeal.
+
+\newpage
+
+# Appendix A: Data Set Selection and Cleaning
+
+When first selecting data on the IPEDS data portal, I selected all institutions with retention rate information, since retention rate would serve as the model’s outcome variable. Out of the 5,575 institutions with retention rate information, 189 were missing information on the institution’s public/private status. Since I intended to use public/private status as a grouping variable in the multilevel models, I had to assess whether the missing public/private status data points were missing at random with respect to either the response or the predictors of interest before excluding them from the model—if they were not missing at random, there is evidence that the data could be biased. To do this, I first produced jitter plots to visually detect any dependence between public/private status missingness and each variable. If a plot appeared to demonstrate dependence, I ran a logistic regression of public/private status missingness on the variable and assessed the resultant coefficient and the magnitude of its t-value.
+
+Based on this analysis, public/private status appeared to be missing at random with respect to most variables of interest. However, the jitter plot pertaining to recreational offerings suggested that institutions with no recreational offerings were more likely to be missing public/private status info; therefore, the data used to fit the models may not be fully representative of institutions without recreational offerings.
 
 
