@@ -2,10 +2,11 @@
 title: "Multilevel Modeling of Postsecondary Retention Rates in the United States"
 author: "Emily Mo"
 date: "12/4/2019"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
+header-includes: \usepackage{float}
 fig_caption: yes
-header-includes:
- \usepackage{float}
 ---
 
 ```{r setup, include=FALSE}
